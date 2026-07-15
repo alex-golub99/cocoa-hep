@@ -91,6 +91,14 @@ void TrackingAction::PreUserTrackingAction(const G4Track*aTrack)
 		trjInfo.vTrackTime.push_back(aTrack->GetGlobalTime());
 		trjInfo.vTrackPDGID.push_back(aTrack->GetDefinition()->GetPDGEncoding());
 
+		trajectories.m_trackid_to_traj[trjInfo.fTrackID] = (int)trajectories.fAllTrajectoryInfo.size();
+		if (trajectories.fAllTrajectoryInfo.size() < 5) {
+			G4double px = trjInfo.fMomentum.x(), py = trjInfo.fMomentum.y();
+			std::cout << "[TrackingAction] primary #" << trajectories.fAllTrajectoryInfo.size()
+			          << " pdg=" << trjInfo.fPDGCode
+			          << " pT(Geant4units)=" << std::sqrt(px*px+py*py)
+			          << " pT(GeV)=" << std::sqrt(px*px+py*py)/1000.0 << std::endl;
+		}
 		trajectories.fAllTrajectoryInfo.push_back(trjInfo);
 		//!Pythia8
 		if (GeneratorName == "pythia8")
@@ -112,37 +120,47 @@ void TrackingAction::PreUserTrackingAction(const G4Track*aTrack)
 	} // if(trj->GetParentID() == 0)
 	else
 	{
-	    for ( std::vector < FullTrajectoryInfo>* _trajectories : { &trajectories.fAllTrajectoryInfo, &trajectories.fAllConvElectrons } )
+		// fAllTrajectoryInfo: O(1) lookup via hash map instead of O(n*m) nested scan
 		{
-		    bool foundTraj(false);
-		    int mTraj(-1); //, mParent(-1);
-		    for (int iTraj = (int)_trajectories->size() - 1; iTraj >= 0; iTraj--)
+			auto it = trajectories.m_trackid_to_traj.find(ParentID);
+			if (it != trajectories.m_trackid_to_traj.end())
 			{
-			    for (int iParent = (int)_trajectories->at(iTraj).vTrackID.size() - 1; iParent >= 0; iParent--)
+				int mTraj = it->second;
+				trajectories.fAllTrajectoryInfo.at(mTraj).vTrackMomentumDir.push_back(aTrack->GetMomentum());
+				trajectories.fAllTrajectoryInfo.at(mTraj).vParentID.push_back(aTrack->GetParentID());
+				trajectories.fAllTrajectoryInfo.at(mTraj).vTrackID.push_back(aTrack->GetTrackID());
+				trajectories.fAllTrajectoryInfo.at(mTraj).vTrackPos.push_back(aTrack->GetPosition());
+				trajectories.fAllTrajectoryInfo.at(mTraj).vTrackTime.push_back(aTrack->GetGlobalTime());
+				trajectories.fAllTrajectoryInfo.at(mTraj).vTrackPDGID.push_back(aTrack->GetDefinition()->GetPDGEncoding());
+				trajectories.m_trackid_to_traj[aTrack->GetTrackID()] = mTraj;
+			}
+		}
+		// fAllConvElectrons: linear search (small container, rare case)
+		{
+			bool foundTraj(false);
+			int mTraj(-1);
+			for (int iTraj = (int)trajectories.fAllConvElectrons.size() - 1; iTraj >= 0; iTraj--)
+			{
+				for (int iParent = (int)trajectories.fAllConvElectrons.at(iTraj).vTrackID.size() - 1; iParent >= 0; iParent--)
 				{
-				    if (ParentID == _trajectories->at(iTraj).vTrackID.at(iParent))
+					if (ParentID == trajectories.fAllConvElectrons.at(iTraj).vTrackID.at(iParent))
 					{
-					    foundTraj = true;
-					    mTraj = iTraj;
-					    break;
-					    
-					} // if( _trajectories->at(iTraj).vParentID.at(iParent) == ParentID )
-				    
-				} // for(int iParent = 0; iParent < (int)_trajectories->at(iTraj).vParentID.size(); iParent++  )
-			    
-			    if (foundTraj)
-				break;
-			    
-			} // for(int iTraj = 0; iTraj < (int)_trajectories->size(); iTraj++)
-		    if (foundTraj)
+						foundTraj = true;
+						mTraj = iTraj;
+						break;
+					}
+				}
+				if (foundTraj) break;
+			}
+			if (foundTraj)
 			{
-			    _trajectories->at(mTraj).vTrackMomentumDir.push_back(aTrack->GetMomentum());
-			    _trajectories->at(mTraj).vParentID.push_back(aTrack->GetParentID());
-			    _trajectories->at(mTraj).vTrackID.push_back(aTrack->GetTrackID());
-			    _trajectories->at(mTraj).vTrackPos.push_back(aTrack->GetPosition());
-			    _trajectories->at(mTraj).vTrackTime.push_back(aTrack->GetGlobalTime());
-			    _trajectories->at(mTraj).vTrackPDGID.push_back(aTrack->GetDefinition()->GetPDGEncoding());
-			} //  if(foundTraj)
+				trajectories.fAllConvElectrons.at(mTraj).vTrackMomentumDir.push_back(aTrack->GetMomentum());
+				trajectories.fAllConvElectrons.at(mTraj).vParentID.push_back(aTrack->GetParentID());
+				trajectories.fAllConvElectrons.at(mTraj).vTrackID.push_back(aTrack->GetTrackID());
+				trajectories.fAllConvElectrons.at(mTraj).vTrackPos.push_back(aTrack->GetPosition());
+				trajectories.fAllConvElectrons.at(mTraj).vTrackTime.push_back(aTrack->GetGlobalTime());
+				trajectories.fAllConvElectrons.at(mTraj).vTrackPDGID.push_back(aTrack->GetDefinition()->GetPDGEncoding());
+			}
 		}
 	}	  //if(aTrack->GetParentID() != 0)
 	if ( IsPrimaryPhotonDaughter( aTrack ) &&

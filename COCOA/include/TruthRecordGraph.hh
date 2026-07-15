@@ -7,6 +7,7 @@
 #include "Config_reader_var.hh"
 #include "TTree.h"
 #include <vector>
+#include <unordered_set>
 #include <stdio.h>
 #include <iostream>
 
@@ -47,6 +48,8 @@ public:
                                         4424, 4432, 4434, 4444, 441, 10441, 100441, 443, 10443, 20443, 100443, 30443, 9000443, 9010443, 9020443, 445, 100445};
 
     std::vector<int> BottomHadrons = {511, 521, 10511, 10521, 513, 523, 10513, 10523, 20513, 20523, 2515, 2525, 531, 10531, 533, 10533, 20533, 2535, 541, 10541, 543, 10543, 20543, 2545};
+
+    std::unordered_set<HepMC::GenParticle *> m_visited_parents;
 
 private:
     std::vector<int> node_idx, node_pdg_id;

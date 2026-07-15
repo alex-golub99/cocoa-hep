@@ -1,0 +1,30 @@
+/generator/select pythia8
+/generator/pythia8/verbose 0
+/generator/pythia8/QuarkGluon 22122212
+
+/generator/pythia8/read Beams:eCM = 14000.
+/generator/pythia8/read Beams:idA = 2212
+/generator/pythia8/read Beams:idB = 2212
+
+/generator/pythia8/read PartonLevel:ISR = on
+/generator/pythia8/read PartonLevel:FSR = on
+
+# ttbar production via gluon fusion and qqbar annihilation
+/generator/pythia8/read Top:gg2ttbar = on
+/generator/pythia8/read Top:qqbar2ttbar = on
+
+# Force t -> W+ b and tbar -> W- bbar only
+/generator/pythia8/read 6:onMode = off
+/generator/pythia8/read 6:onIfAny = 24
+
+# Force W -> l nu (e or mu only, no tau)
+# Both charges use the same decay table; eμ different-flavour selection
+# is applied in post-processing on particle_pdgid
+/generator/pythia8/read 24:onMode = off
+/generator/pythia8/read 24:onIfAny = 11 12 13 14
+
+/generator/pythia8/init 2212 2212 14000.
+
+/tracking/storeTrajectory 1
+
+/run/beamOn 10

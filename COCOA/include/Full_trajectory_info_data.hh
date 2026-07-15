@@ -2,6 +2,7 @@
 #define __FULL_TRAJECTORY_INFO_VAR_H__
 
 #include "vector"
+#include <unordered_map>
 #include "G4Types.hh"
 #include "G4ThreeVector.hh"
 #include "TTree.h"
@@ -58,6 +59,7 @@ void fill_var();
     };
     std::vector < FullTrajectoryInfo> fAllTrajectoryInfo;
     std::vector < FullTrajectoryInfo> fAllConvElectrons;
+    std::unordered_map<G4int, int> m_trackid_to_traj;
 	std::vector <int>	particle_to_track;
 	std::vector <fastjet::PseudoJet> jets_objects;
     void SetParticleDepEnergy( const std::vector<float> &_particle_dep_energies);

@@ -1,0 +1,5 @@
+/generator/select hepmcAscii
+/generator/hepmcAscii/verbose 0
+/generator/hepmcAscii/open /pscratch/sd/a/agolub/madgraph_HSS_test/tag_1_pythia8_events.hepmc
+/tracking/storeTrajectory 1
+/run/beamOn 100

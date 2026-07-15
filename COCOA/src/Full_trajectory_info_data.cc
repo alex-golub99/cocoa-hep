@@ -120,6 +120,7 @@ void Full_trajectory_info_data::clear()
 {
     fAllTrajectoryInfo.clear();
     fAllConvElectrons.clear();
+    m_trackid_to_traj.clear();
     particle_pdgid.clear();
     particleisIso.clear();
     particle_pt.clear();

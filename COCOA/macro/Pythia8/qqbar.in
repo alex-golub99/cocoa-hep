@@ -1,0 +1,23 @@
+/generator/select pythia8
+/generator/pythia8/verbose 0
+/generator/pythia8/QuarkGluon 22122212
+
+/generator/pythia8/read Beams:eCM = 14000.
+/generator/pythia8/read Beams:idA = 2212
+/generator/pythia8/read Beams:idB = 2212
+
+/generator/pythia8/read PartonLevel:ISR = on
+/generator/pythia8/read PartonLevel:FSR = on
+
+# q qbar production: gg -> q qbar and q qbar -> q qbar (same/new flavour)
+/generator/pythia8/read HardQCD:gg2qqbar = on
+/generator/pythia8/read HardQCD:qqbar2qqbarNew = on
+
+# minimum pT cut to regulate the QCD divergence at low pT
+/generator/pythia8/read PhaseSpace:pTHatMin = 150.
+
+/generator/pythia8/init 2212 2212 14000.
+
+/tracking/storeTrajectory 1
+
+/run/beamOn 10
