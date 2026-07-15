@@ -47,6 +47,8 @@
 #include "Jet_Builder_data.hh"
 
 #include <memory>
+#include <chrono>
+#include <iostream>
 
 using namespace std;
 
@@ -95,6 +97,15 @@ void EventAction::BeginOfEventAction(const G4Event *anEvent) //const G4Event* an
 void EventAction::EndOfEventAction(const G4Event *evt)
 {
 	(void)evt;
+
+	using Clock = std::chrono::steady_clock;
+	auto t_end_start = Clock::now();
+
+	Full_trajectory_info_data &_traj_debug = Full_trajectory_info_data::GetInstance();
+	std::cout << "[TIMING] EndOfEventAction start (Geant4 sim done)"
+	          << "  fAllTrajectoryInfo.size()=" << _traj_debug.fAllTrajectoryInfo.size()
+	          << "  m_trackid_to_traj.size()=" << _traj_debug.m_trackid_to_traj.size()
+	          << std::endl;
 
 	Config_reader_var &config_var = Config_reader_var::GetInstance();
 	auto runAction = (OutputRunAction *)G4RunManager::GetRunManager()->GetUserRunAction();
@@ -216,6 +227,12 @@ void EventAction::EndOfEventAction(const G4Event *evt)
 			if ( config_var.doPFlow )
 			    pflow_obj.fill_cell_var();
 			trajectories.fill_var();
+			{
+				auto t_fill_var = Clock::now();
+				std::cout << "[TIMING] trajectories.fill_var(): "
+				          << std::chrono::duration_cast<std::chrono::milliseconds>(t_fill_var - t_end_start).count()
+				          << " ms" << std::endl;
+			}
 			if ( config_var.doSuperclustering )
 			{
 				Superclustering superclusters(tracks_list_low.Tracks_list, topo_clusts.topo_clusts_list, cells_data_low.Cells_in_topoclusters, superclustering_data.super_list);
@@ -238,6 +255,12 @@ void EventAction::EndOfEventAction(const G4Event *evt)
 			jets_build.build_jets(trajectories.jets_objects, true_jets_obj, config_var.jet_parameter);
 			true_jets_obj.fill_cell_var();
 			jets_build.reset();
+			{
+				auto t_jets = Clock::now();
+				std::cout << "[TIMING] truth jets + topo jets: "
+				          << std::chrono::duration_cast<std::chrono::milliseconds>(t_jets - t_end_start).count()
+				          << " ms cumulative" << std::endl;
+			}
 			topo_clusts.make_pseudo_jet_particles();
 			jets_build.build_jets(topo_clusts.jets_objects, topo_jets_obj, config_var.jet_parameter);
 			topo_jets_obj.fill_cell_var();
@@ -245,6 +268,12 @@ void EventAction::EndOfEventAction(const G4Event *evt)
 		}
 	}
 
+	{
+		auto t_tree_fill = Clock::now();
+		std::cout << "[TIMING] EndOfEventAction total before Fill: "
+		          << std::chrono::duration_cast<std::chrono::milliseconds>(t_tree_fill - t_end_start).count()
+		          << " ms" << std::endl;
+	}
 	runAction->outTree_low->Fill();
 	truth_record_graph.clear();
 

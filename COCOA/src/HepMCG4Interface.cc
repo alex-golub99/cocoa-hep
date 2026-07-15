@@ -42,7 +42,8 @@
 #include "G4SystemOfUnits.hh"
 
 #include <vector>
-
+#include <chrono>
+#include <iostream>
 
 HepMCG4Interface::HepMCG4Interface()
 	: hepmcEvent(0)
@@ -74,6 +75,22 @@ G4bool HepMCG4Interface::CheckVertexInsideWorld(const G4ThreeVector &pos) const
 void HepMCG4Interface::HepMC2G4(const HepMC::GenEvent *hepmcevt,
 								G4Event *g4event)
 {
+	using Clock = std::chrono::steady_clock;
+	auto t_hepmc_start = Clock::now();
+
+	// HepMC momentum units: Pythia8 fills events in MeV; external files (MadGraph) use GeV.
+	// p_factor converts HepMC momentum values to Geant4 internal units (MeV).
+	// pt_min_native is the fiducial pT cut expressed in the same units as perp().
+	double p_factor;
+	double pt_min_native;
+	if (hepmcevt->momentum_unit() == HepMC::Units::GEV) {
+		p_factor       = GeV;
+		pt_min_native  = config_json_var.fiducial_cuts.pt_min;          // already GeV
+	} else {
+		p_factor       = MeV;
+		pt_min_native  = 1000. * config_json_var.fiducial_cuts.pt_min;  // GeV → MeV
+	}
+
 	float eta_primary=-100;
 	float phi_primary=-100;
 
@@ -129,7 +146,7 @@ void HepMCG4Interface::HepMC2G4(const HepMC::GenEvent *hepmcevt,
 
 			if ((*vpitr)->status() != 1)
 				continue;
-			if ((*vpitr)->momentum().perp() < 1000.*config_json_var.fiducial_cuts.pt_min)
+			if ((*vpitr)->momentum().perp() < pt_min_native)
 			{
 				continue;
 			}
@@ -159,8 +176,8 @@ void HepMCG4Interface::HepMC2G4(const HepMC::GenEvent *hepmcevt,
 
 			pos = (pptr)->production_vertex()->position();
 			G4int pdgcode = (pptr)->pdg_id();
-			// skip neutrinos
-			if (abs(pdgcode) == 12 || abs(pdgcode) == 14 || abs(pdgcode) == 16)
+			// skip neutrinos and ALP
+			if (abs(pdgcode) == 12 || abs(pdgcode) == 14 || abs(pdgcode) == 16 || abs(pdgcode) == 9000005)
 			{
 				continue;
 			}
@@ -176,14 +193,27 @@ void HepMCG4Interface::HepMC2G4(const HepMC::GenEvent *hepmcevt,
 			HepMC::FourVector mom = pptr->momentum();
 			int pdgcode = pptr->pdg_id();
 			G4LorentzVector p(mom.px(), mom.py(), mom.pz(), mom.e());
-			G4PrimaryParticle *g4prim = new G4PrimaryParticle(pdgcode, p.x() * MeV, p.y() * MeV, p.z() * MeV);
+			G4PrimaryParticle *g4prim = new G4PrimaryParticle(pdgcode, p.x() * p_factor, p.y() * p_factor, p.z() * p_factor);
 			g4vtx->SetPrimary(g4prim);
 			m_truthrecordgraph.m_final_state_particles.push_back(pptr);
 		}
 
 		g4event->AddPrimaryVertex(g4vtx);
 	}
+
+	auto t_after_loop = Clock::now();
+	std::cout << "[TIMING] HepMC2G4 vertex/particle loop: "
+	          << std::chrono::duration_cast<std::chrono::milliseconds>(t_after_loop - t_hepmc_start).count()
+	          << " ms  |  m_interesting_particles.size()=" << m_truthrecordgraph.m_interesting_particles.size()
+	          << "  m_final_state_particles.size()=" << m_truthrecordgraph.m_final_state_particles.size()
+	          << std::endl;
+
 	m_truthrecordgraph.fill_truth_graph();
+
+	auto t_after_truth = Clock::now();
+	std::cout << "[TIMING] fill_truth_graph: "
+	          << std::chrono::duration_cast<std::chrono::milliseconds>(t_after_truth - t_after_loop).count()
+	          << " ms" << std::endl;
 }
 
 HepMC::GenEvent *HepMCG4Interface::GenerateHepMCEvent()

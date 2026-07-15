@@ -278,29 +278,16 @@ void SteppingAction::UserSteppingAction(const G4Step *astep)
 
 	if ((int)trajectories.fAllTrajectoryInfo.size() == 0)
 		return;
-	// ----- assigning the trajectory to step ---- //
+	// ----- assigning the trajectory to step via O(1) hash map lookup ---- //
 	bool foundTraj(false);
 	int mTraj(-1);
-	// int mParent(-1);
-	// ----- search over all the trajectories ---------- //
-	for (int iTraj = (int)trajectories.fAllTrajectoryInfo.size() - 1; iTraj >= 0; iTraj--)
 	{
-		// ----- search for all the existing trackID in a given trajectory ---- //
-		for (int iParent = (int)trajectories.fAllTrajectoryInfo.at(iTraj).vTrackID.size() - 1; iParent >= 0; iParent--)
-		{
-
-			if (ParentID == trajectories.fAllTrajectoryInfo.at(iTraj).vTrackID.at(iParent))
-			{
-				foundTraj = true;
-				mTraj = iTraj;
-				break;
-			} // if( trajectories.fAllTrajectoryInfo.at(iTraj).vParentID[iParent] == ParentID )
-
-		} // for(int iParent = 0; iParent < (int)trajectories.fAllTrajectoryInfo.at(iTraj).vParentID.size(); iParent++  )
-
-		if (foundTraj)
-			break;
-	} // for(int iTraj = 0; iTraj < (int)trajectories.fAllTrajectoryInfo.size(); iTraj++)
+		auto it = trajectories.m_trackid_to_traj.find(ParentID);
+		if (it != trajectories.m_trackid_to_traj.end()) {
+			foundTraj = true;
+			mTraj = it->second;
+		}
+	}
 
 	// ==================================================
 	// Emulation of Energy Sampling : Use the user-defined

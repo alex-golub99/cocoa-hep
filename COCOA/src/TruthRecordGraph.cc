@@ -1,10 +1,13 @@
 #include "TruthRecordGraph.hh"
 #include "OutputRunAction.hh"
+#include <iostream>
+#include <limits>
 
 void TruthRecordGraph::clear()
 {
 	m_interesting_particles.clear();
 	m_final_state_particles.clear();
+	m_visited_parents.clear();
 	node_idx.clear();
 	node_pdg_id.clear();
 	node_phi.clear();
@@ -120,6 +123,9 @@ HepMC::GenParticle *TruthRecordGraph::check_prod_location(HepMC::GenParticle *pa
 
 void TruthRecordGraph::add_all_moving_parents(HepMC::GenParticle *to_add, std::vector<HepMC::GenParticle *> &add_to)
 {
+	if (m_visited_parents.count(to_add))
+		return;
+	m_visited_parents.insert(to_add);
 
 	if (!(to_add->production_vertex()))
 	{
@@ -267,14 +273,26 @@ void TruthRecordGraph::find_daughters(HepMC::GenParticle *parent, std::vector<He
 void TruthRecordGraph::fill_truth_graph()
 {
 	size_t n_particles = m_interesting_particles.size();
+	// O(n^2 * tree_depth) complexity — skip for large events to avoid minutes of overhead
+	if (n_particles > 100) {
+		std::cout << "[TruthGraph] Skipping fill_truth_graph: " << n_particles
+		          << " interesting particles exceeds limit." << std::endl;
+		return;
+	}
+	int n_has_endvtx = 0;
+	int n_all_daughters_total = 0;
+	int n_direct_daughters_total = 0;
 	for (size_t part_i = 0; part_i < n_particles; part_i++)
 	{
 		HepMC::GenParticle *particle = m_interesting_particles.at(part_i);
+		if (particle->end_vertex()) n_has_endvtx++;
 		std::vector<int> all_direct_daughters;
 		std::vector<int> direct_daughters;
 
 		find_daughters(particle, m_interesting_particles, all_direct_daughters);
 		clean_daugthers(m_interesting_particles, all_direct_daughters, direct_daughters);
+		n_all_daughters_total  += (int)all_direct_daughters.size();
+		n_direct_daughters_total += (int)direct_daughters.size();
 
 		for (auto d_i : direct_daughters)
 		{
@@ -282,6 +300,11 @@ void TruthRecordGraph::fill_truth_graph()
 			edge_end.push_back(d_i);
 		}
 	}
+	std::cout << "[TruthGraph] n_particles=" << n_particles
+	          << "  with_end_vtx=" << n_has_endvtx
+	          << "  all_daughters_found=" << n_all_daughters_total
+	          << "  direct_daughters_after_clean=" << n_direct_daughters_total
+	          << "  edges=" << edge_start.size() << std::endl;
 
 	for (size_t part_i = 0; part_i < n_particles; part_i++)
 	{
@@ -319,6 +342,17 @@ void TruthRecordGraph::fill_truth_graph()
 			node_pt.push_back(particle->momentum().perp());
 			node_m.push_back(particle->momentum().m());
 			node_isfinal.push_back(particle->status());
+
+			HepMC::GenVertex *prod_vtx = particle->production_vertex();
+			node_prodx.push_back(prod_vtx ? prod_vtx->position().x() : 0.0);
+			node_prody.push_back(prod_vtx ? prod_vtx->position().y() : 0.0);
+			node_prodz.push_back(prod_vtx ? prod_vtx->position().z() : 0.0);
+
+			HepMC::GenVertex *end_vtx = particle->end_vertex();
+			node_decx.push_back(end_vtx ? end_vtx->position().x() : std::numeric_limits<float>::quiet_NaN());
+			node_decy.push_back(end_vtx ? end_vtx->position().y() : std::numeric_limits<float>::quiet_NaN());
+			node_decz.push_back(end_vtx ? end_vtx->position().z() : std::numeric_limits<float>::quiet_NaN());
+
 			final_idx.push_back(node_final_state_idx);
 		}
 	}
