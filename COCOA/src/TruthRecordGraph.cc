@@ -274,7 +274,7 @@ void TruthRecordGraph::fill_truth_graph()
 {
 	size_t n_particles = m_interesting_particles.size();
 	// O(n^2 * tree_depth) complexity — skip for large events to avoid minutes of overhead
-	if (n_particles > 100) {
+	if (n_particles > 1000) {
 		std::cout << "[TruthGraph] Skipping fill_truth_graph: " << n_particles
 		          << " interesting particles exceeds limit." << std::endl;
 		return;
@@ -321,12 +321,12 @@ void TruthRecordGraph::fill_truth_graph()
 		{
 			has_mothers_or_daughters = true;
 		}
+		
+		HepMC::GenParticle *particle = m_interesting_particles.at(part_i);
 
-		if (has_mothers_or_daughters)
+		if (has_mothers_or_daughters || abs(particle->pdg_id()) == 36)
 		{
-
 			node_idx.push_back(part_i);
-			HepMC::GenParticle *particle = m_interesting_particles.at(part_i);
 
 			int node_final_state_idx = -1;
 
